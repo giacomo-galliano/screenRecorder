@@ -1,0 +1,8 @@
+.DS_store
+.idea/workspace.xml
+/.idea/
+workspace.xml
+/cmake-build-debug/*
+/build/*
+/media/*
+.vscode/
