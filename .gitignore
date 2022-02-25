@@ -4,5 +4,4 @@
 workspace.xml
 /cmake-build-debug/*
 build/*
-media/*
 .vscode/

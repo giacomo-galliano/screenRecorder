@@ -30,7 +30,9 @@ The simplest way to have all the dependencies needed for this project is to use 
 The simplest way to have all the dependencies needed for this project is to use package managers as `brew`.
 
 ## Build Instructions 
+Run the script `build.sh` or alternatively the following commands:
 ```bash
+$ mkdir build
 $ cd build
 $ cmake ..
 $ make
