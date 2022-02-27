@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <QGridLayout>
 #include <QDesktopWidget>
+#include <QMouseEvent>
 
 class QPushButton;
 class Window : public QWidget
@@ -19,8 +20,18 @@ public:
     int H;
 private slots:
     void slotButtonClicked();
+    void mousePressEvent(QMouseEvent *event);
+    void mouseMoveEvent(QMouseEvent *event);
+    void mouseReleaseEvent(QMouseEvent * event);
 private:
     QPushButton *m_button;
     QRect screenGeometry;
+//    QPoint mpos;
+
+    ///
+    QPoint global_mpos;
+    int storeWidth;
+    int storeHeight;
+    QPoint mpos;
 };
 #endif //AREASELECTOR_H
