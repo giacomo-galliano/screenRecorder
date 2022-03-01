@@ -23,6 +23,11 @@ sudo apt-get install libavcodec-dev libavformat-dev libavfilter-dev libavutil-de
 sudo apt-get install qt5-default qt5-qmake qtmultimedia5-dev build-essential
 ```
 
+If you face problem with the package `qt5-default` try with the following command 
+```
+sudo apt-get install qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools
+```
+
 ### Windows
 The simplest way to have all the dependencies needed for this project is to use package managers as `vcpkg`.
 

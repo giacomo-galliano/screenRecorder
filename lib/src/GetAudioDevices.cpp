@@ -15,7 +15,6 @@ std::vector<std::string> getAudioDevices() {
     try {
         std::vector<std::string> devices;
 #ifdef __linux__
-        std::cout << "Starting" << std::endl;
         filesystem::directory_iterator alsaDir{"/proc/asound"};
         regex findCard{".*card(0|[1-9]?[0-9]*)"};
         regex findPcm{".*pcm.*"};

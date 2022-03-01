@@ -508,6 +508,7 @@ void ScreenRecorder::readFrame(){
 
 #ifdef __linux__
         if(memoryCheck_limitSurpassed()){
+            //todo: change way to manage memory over the limit
             pause_();
             this_thread::sleep_for(5s);
             restart_();
