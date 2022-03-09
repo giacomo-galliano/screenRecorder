@@ -25,7 +25,6 @@
 #define OUT_AUDIO_INDEX 1
 
 /*
- * todo: getVideo info?
  * todo: check if destroy everything needed
  */
 
@@ -40,6 +39,7 @@ class ScreenRecorder {
 public:
 
     ScreenRecorder();
+    ScreenRecorder(int fps_, int factor_);
     ~ScreenRecorder();
 
     void open_();
@@ -56,6 +56,8 @@ private:
     string outFileName;
     RecStatus status;
     int rec_type{};
+    const int fps;
+    const int factor;
 
     //VIDEO VARIABLES
     string videoInFmt;

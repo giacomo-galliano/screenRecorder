@@ -1,6 +1,6 @@
 #include "../include/ScreenRecorder.h"
 
-ScreenRecorder::ScreenRecorder() : status(RecStatus::STARTED), cropX(0), cropY(0), vPTS(0), aPTS(0), inAIndex(-1), inVIndex(-1){
+ScreenRecorder::ScreenRecorder() : status(RecStatus::STARTED), fps(15), factor(1), cropX(0), cropY(0), vPTS(0), aPTS(0), inAIndex(-1), inVIndex(-1){
     avdevice_register_all();
 //  avformat_network_init();
 
@@ -9,8 +9,23 @@ ScreenRecorder::ScreenRecorder() : status(RecStatus::STARTED), cropX(0), cropY(0
 #ifdef __linux__
     memoryCheck_init(3000);
 #endif
-
 }
+
+ScreenRecorder::ScreenRecorder(int fps_, int factor_) : status(RecStatus::STARTED), fps(fps_), factor(factor_), cropX(0), cropY(0), vPTS(0), aPTS(0), inAIndex(-1), inVIndex(-1){
+    avdevice_register_all();
+//  avformat_network_init();
+
+    av_log_set_level(AV_LOG_ERROR);
+
+    if(fps_ != 15 && fps_ != 24 && fps_ != 30 && fps_ != 60){
+        throw logic_error ("Fps must be equals to one of these values: 15, 24, 30, 60");
+    }
+
+#ifdef __linux__
+    memoryCheck_init(3000);
+#endif
+}
+
 ScreenRecorder::~ScreenRecorder() {
     readVideoThread->join();
     switch(rec_type){
@@ -153,19 +168,23 @@ void ScreenRecorder::start_(){
 
 void ScreenRecorder::pause_(){
     lock_guard<mutex> ul(statusLock);
-    status = RecStatus::PAUSE;
-    std::cout << "\033[1;33m" << "Recording paused" << "\033[0m" << std::endl;
+    if(status != RecStatus::STOP){
+        status = RecStatus::PAUSE;
+        std::cout << "\033[1;33m" << "Recording paused" << "\033[0m" << std::endl;
+    }
 }
 
 void ScreenRecorder::restart_(){
     lock_guard<mutex> lg(statusLock);
+    if(status != RecStatus::STOP) {
 #ifdef __linux__
-    videoPause();
-    openVideoInput();
+        videoPause();
+        openVideoInput();
 #endif
-    status = RecStatus::RECORDING;
-    cv.notify_all();
-    std::cout << "\033[1;32m" << "Recording resumed" << "\033[0m" << std::endl;
+        status = RecStatus::RECORDING;
+        cv.notify_all();
+        std::cout << "\033[1;32m" << "Recording resumed" << "\033[0m" << std::endl;
+    }
 }
 
 void ScreenRecorder::stop_(){
@@ -230,8 +249,9 @@ void ScreenRecorder::openVideoInput() {
         throw logic_error{"av_find_input_format not found..."};
     }
 
-    av_dict_set (&sourceOptions, "framerate", "15", 0);
+    av_dict_set (&sourceOptions, "framerate", to_string(fps).c_str(), 0);
     av_dict_set (&sourceOptions, "probesize", "40M", 0);
+    av_dict_set (&sourceOptions, "threads", "8", 0);
 
     if(rec_type == Command::vosp || rec_type == Command::avsp) {
         string ratio = to_string(cropWidth)+"x"+to_string(cropHeight);
@@ -308,7 +328,7 @@ void ScreenRecorder::videoPause() {
 
 void ScreenRecorder::initVideoEncoder(){
 
-    outVC = avcodec_find_encoder(AV_CODEC_ID_H264); //TODO: scegliere tra H264 e MPEG4
+    outVC = avcodec_find_encoder(AV_CODEC_ID_H264);
     if(!outVC){
         throw logic_error{"Encoder codec not found"};
     }
@@ -324,32 +344,16 @@ void ScreenRecorder::initVideoEncoder(){
         throw runtime_error{"Could not allocate video encoder contex"};
     }
 
-//    avcodec_parameters_to_context(outVCCtx, outVStream->codecpar);
-
-    outVCCtx->width = inVCCtx->width;
-    outVCCtx->height = inVCCtx->height;
-    //todo: decide if bitrate setting is needed
-    outVCCtx->bit_rate = 5000000;
+    outVCCtx->width = inVCCtx->width*factor;
+    outVCCtx->height = inVCCtx->height*factor;
     outVCCtx->pix_fmt = PIXELFMT;
-    //todo: insert fps in variable
-    outVCCtx->time_base = (AVRational){1,15};
-    outVCCtx->framerate = (AVRational){15,1};//av_inv_q(cCtx->time_base);
+    outVCCtx->time_base = (AVRational){1,2*fps};
+    outVCCtx->framerate = (AVRational){fps,1};//av_inv_q(cCtx->time_base);
     if ( outFmtCtx->oformat->flags & AVFMT_GLOBALHEADER)
         outVCCtx->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 
     if (outVCCtx->codec_id == AV_CODEC_ID_H264) {
         av_opt_set(outVCCtx, "preset", "ultrafast", 0);
-//        av_opt_set(outVCCtx, "tune", "zerolatency", 0);
-//        av_opt_set(outVCCtx, "cabac", "1", 0);
-//        av_opt_set(outVCCtx, "ref", "3", 0);
-//        av_opt_set(outVCCtx, "deblock", "1:0:0", 0);
-//        av_opt_set(outVCCtx, "analyse", "0x3:0x113", 0);
-//        av_opt_set(outVCCtx, "subme", "7", 0);
-//        av_opt_set(outVCCtx, "chroma_qp_offset", "4", 0);
-//        av_opt_set(outVCCtx, "rc", "crf", 0);
-//        av_opt_set(outVCCtx, "rc_lookahead", "40", 0);
-//        av_opt_set(outVCCtx, "crf", "10.0", 0);
-//        av_opt_set(outVCCtx, "threads", "8", 0);
     }
 
 
@@ -465,6 +469,8 @@ void ScreenRecorder::initAudioEncoder() {
         }
     }
 
+
+
     outACCtx->codec_id = AV_CODEC_ID_AAC;
     outACCtx->bit_rate = 128000;
     outACCtx->channels = inACCtx->channels;
@@ -508,10 +514,8 @@ void ScreenRecorder::readFrame(){
 
 #ifdef __linux__
         if(memoryCheck_limitSurpassed()){
-            //todo: change way to manage memory over the limit
             pause_();
-            this_thread::sleep_for(5s);
-            restart_();
+            cout << "\033[1;33m" << "Overload! Needed to pause to avoid memory saturation. Try to reduce screen resolution to improve performances" << "\033[0m \n>> " << endl;
         }
 #endif
 
@@ -589,7 +593,8 @@ void ScreenRecorder::processVideo() {
                     if(avcodec_send_frame(outVCCtx, convFrame) >= 0){
                         if(avcodec_receive_packet(outVCCtx, &outPkt) >= 0){
                             unique_lock<mutex> writeLock_ul(writeLock);
-                            if (av_interleaved_write_frame(outFmtCtx, &outPkt) < 0) {
+                            //todo: interleaved_write or write?
+                            if (av_write_frame(outFmtCtx, &outPkt) < 0) {
                                 throw runtime_error("Error in writing file");
                             }
                             writeLock_ul.unlock();
@@ -602,9 +607,6 @@ void ScreenRecorder::processVideo() {
                 av_packet_unref(&outPkt);
             }
         }else{
-//            video_queue.shrink_to_fit();
-//            video_queue.clear();
-//            malloc_trim(0);
 
             video_queue_ul.unlock();
             unique_lock<mutex> ul(statusLock);
