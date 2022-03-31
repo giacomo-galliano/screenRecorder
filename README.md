@@ -89,11 +89,6 @@ This function returns information about sample rate, bit rate and channels of th
 - `string getRecState();`
 This function returns information about width, height, fps of the video part of the recording.
 
-## Compatibility
-- Linux ***[tested]***
-- Windows ***[tested]***
-- MacOS ***[NOT tested]***
-
 ---
 ## Contributors 
 - [Galliano Giacomo](https://github.com/giacomo-galliano)
